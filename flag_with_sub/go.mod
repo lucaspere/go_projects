@@ -1,3 +1,3 @@
-module flag-sub-cmd
+module mync
 
 go 1.19
