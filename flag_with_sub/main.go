@@ -2,9 +2,9 @@ package main
 
 import (
 	"errors"
-	"flag-sub-cmd/cmd"
 	"fmt"
 	"io"
+	"mync/cmd"
 	"os"
 )
 
@@ -29,13 +29,13 @@ func handleCommand(w io.Writer, args []string) error {
 			err = cmd.HandleGrpc(w, args[1:])
 		case "-h":
 			printUsage(w)
-		case "-help":
+		case "--help":
 			printUsage(w)
 		default:
 			err = errInvalidSubCommand
 		}
 	}
-	if errors.Is(err, cmd.ErrNoServerSpecified) || errors.Is(err, errInvalidSubCommand) {
+	if errors.Is(err, cmd.ErrNoServerSpecified) || errors.Is(err, errInvalidSubCommand) || errors.Is(err, cmd.InvalidHttpMethod) {
 		fmt.Fprintln(w, err)
 		printUsage(w)
 	}
@@ -43,7 +43,7 @@ func handleCommand(w io.Writer, args []string) error {
 }
 
 func main() {
-	err := handleCommand(os.Stdout, os.Args[:1])
+	err := handleCommand(os.Stdout, os.Args[1:])
 	if err != nil {
 		os.Exit(1)
 	}
