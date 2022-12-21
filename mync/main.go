@@ -35,7 +35,7 @@ func handleCommand(w io.Writer, args []string) error {
 			err = errInvalidSubCommand
 		}
 	}
-	if errors.Is(err, cmd.ErrNoServerSpecified) || errors.Is(err, errInvalidSubCommand) || errors.Is(err, cmd.InvalidHttpMethod) {
+	if errors.Is(err, cmd.ErrNoServerSpecified) || errors.Is(err, errInvalidSubCommand) || errors.Is(err, cmd.InvalidHttpMethod) || errors.Is(err, cmd.InvalidJsonBody) {
 		fmt.Fprintln(w, err)
 		printUsage(w)
 	}
