@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -20,6 +21,7 @@ type httpConfig struct {
 	body           string
 	filePath       string
 	formData       map[string]string
+	disableRed     bool
 }
 
 func HandleHttp(w io.Writer, args []string) error {
@@ -32,6 +34,8 @@ func HandleHttp(w io.Writer, args []string) error {
 	fs.StringVar(&hc.body, "body", "", "JSON data to be used as payload")
 	fs.StringVar(&hc.filePath, "body-file", "", "File path containing the JSON data to be used as payload")
 	fs.StringVar(&hc.filePath, "upload", "", "File path of the upload file")
+	fs.BoolVar(&hc.disableRed, "disable-redirect", false, "If it is for the client not to follow the redirect url")
+
 	str := fs.String("form-data", "", "Form-Data key-value pair")
 
 	if len(*str) > 0 {
@@ -106,7 +110,10 @@ func (hc *httpConfig) validateMethod(w io.Writer) error {
 }
 
 func (hc *httpConfig) handleGet() ([]byte, error) {
-	res, err := http.Get(hc.url)
+	client := http.Client{
+		CheckRedirect: hc.redirectPolicy,
+	}
+	res, err := client.Get(hc.url)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +125,9 @@ func (hc *httpConfig) handleGet() ([]byte, error) {
 func (hc *httpConfig) handlePost() ([]byte, error) {
 	var body io.Reader
 	var ct = "application/json"
+	client := http.Client{
+		CheckRedirect: hc.redirectPolicy,
+	}
 	if len(hc.filePath) > 0 {
 		hc.filePath = filepath.Join(hc.filePath)
 		file, err := os.Open(hc.filePath)
@@ -150,7 +160,7 @@ func (hc *httpConfig) handlePost() ([]byte, error) {
 		body = bytes.NewReader([]byte(hc.body))
 	}
 
-	res, err := http.Post(hc.url, ct, body)
+	res, err := client.Post(hc.url, ct, body)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +182,7 @@ func (hc *httpConfig) handleMultipart(b []byte) ([]byte, string, error) {
 			return nil, "", err
 		}
 
-		fmt.Fprintf(fw, value)
+		fmt.Fprintln(fw, value)
 	}
 
 	fw, err = mw.CreateFormFile("filedata", hc.filePath)
@@ -188,4 +198,11 @@ func (hc *httpConfig) handleMultipart(b []byte) ([]byte, string, error) {
 
 	contentType := mw.FormDataContentType()
 	return buf.Bytes(), contentType, nil
+}
+
+func (hc *httpConfig) redirectPolicy(req *http.Request, via []*http.Request) error {
+	if hc.disableRed {
+		return errors.New("disabled redirect")
+	}
+	return nil
 }
