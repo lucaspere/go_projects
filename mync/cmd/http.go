@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -120,9 +121,14 @@ func (hc *httpConfig) validateMethod(w io.Writer) error {
 }
 
 func (hc *httpConfig) handleGet() ([]byte, error) {
+	myTransport := LoggingClient{}
+	l := log.New(os.Stdout, "", log.LstdFlags)
+	myTransport.log = l
 	client := http.Client{
 		CheckRedirect: hc.redirectPolicy,
+		Transport:     &myTransport,
 	}
+
 	req, err := hc.createHTTPGetRequest()
 	if err != nil {
 		return nil, err
