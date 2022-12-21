@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -9,26 +11,22 @@ import (
 	"path/filepath"
 )
 
-var methods = map[string]bool{
-	"POST": true,
-	"GET":  true,
-	"HEAD": true,
-}
-
 type httpConfig struct {
 	url      string
 	verb     string
 	filePath string
+	body     string
 }
 
 func HandleHttp(w io.Writer, args []string) error {
 	hc := httpConfig{}
 	fs := flag.NewFlagSet("http", flag.ContinueOnError)
+
 	fs.SetOutput(w)
 	fs.StringVar(&hc.verb, "verb", "GET", "HTTP method")
 	fs.StringVar(&hc.filePath, "output", "", "File path where save the data's output")
-	fs.StringVar(&hc.filePath, "body", "", "JSON data to be used as payload")
-	fs.StringVar(&hc.filePath, "body-file", "", "File path containing the JSON data to be used as payload")
+	fs.StringVar(&hc.body, "body", "", "JSON data to be used as payload")
+	fs.StringVar(&hc.body, "body-file", "", "File path containing the JSON data to be used as payload")
 
 	fs.Usage = func() {
 		var usageString = `
@@ -40,15 +38,11 @@ http: <options> server`
 		fmt.Fprintln(w, "Options: ")
 		fs.PrintDefaults()
 	}
-
 	err := fs.Parse(args)
 	if err != nil {
 		return err
 	}
 
-	if !hc.validateMethod() {
-		return InvalidHttpMethod
-	}
 	if fs.NArg() != 1 {
 		return ErrNoServerSpecified
 	}
@@ -68,40 +62,59 @@ http: <options> server`
 			}
 		}
 
-		hc.fetchData(file)
+		err = hc.validateMethod(file)
 	} else {
-		hc.fetchData(w)
+		err = hc.validateMethod(w)
 	}
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (hc *httpConfig) validateMethod(w io.Writer) error {
+	var data []byte
+	var err error
+	switch hc.verb {
+	case "GET":
+		data, err = hc.handleGet()
+	case "POST":
+		data, err = hc.handlePost()
+	default:
+		return InvalidHttpMethod
+	}
+
+	if err != nil {
+		return err
+	}
+	w.Write(data)
 
 	return nil
 }
 
-func (c *httpConfig) fetchData(w io.Writer) error {
-	req, err := http.NewRequest(c.verb, c.url, nil)
+func (hc *httpConfig) handleGet() ([]byte, error) {
+	res, err := http.Get(hc.url)
 	if err != nil {
-		return err
-	}
-
-	client := http.Client{}
-	res, err := client.Do(req)
-	if err != nil {
-		return err
+		return nil, err
 	}
 	defer res.Body.Close()
 
-	data, err := io.ReadAll(res.Body)
-
-	w.Write(data)
-
-	return err
+	return io.ReadAll(res.Body)
 }
 
-func (c *httpConfig) validateMethod() bool {
-	switch c.verb {
-	case "GET":
+func (hc *httpConfig) handlePost() ([]byte, error) {
+	if !json.Valid([]byte(hc.body)) {
+		return nil, InvalidJsonBody
+	} else {
+		body := bytes.NewReader([]byte(hc.body))
+		res, err := http.Post(hc.url, "application/json", body)
+		if err != nil {
+			return nil, err
+		}
 
+		defer res.Body.Close()
+		return io.ReadAll(res.Body)
 	}
-	_, ok := methods[c.verb]
 
-	return ok
 }
