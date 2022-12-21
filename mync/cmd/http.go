@@ -12,10 +12,11 @@ import (
 )
 
 type httpConfig struct {
-	url      string
-	verb     string
-	filePath string
-	body     string
+	url          string
+	verb         string
+	filePath     string
+	body         string
+	bodyFilePath string
 }
 
 func HandleHttp(w io.Writer, args []string) error {
@@ -26,7 +27,7 @@ func HandleHttp(w io.Writer, args []string) error {
 	fs.StringVar(&hc.verb, "verb", "GET", "HTTP method")
 	fs.StringVar(&hc.filePath, "output", "", "File path where save the data's output")
 	fs.StringVar(&hc.body, "body", "", "JSON data to be used as payload")
-	fs.StringVar(&hc.body, "body-file", "", "File path containing the JSON data to be used as payload")
+	fs.StringVar(&hc.bodyFilePath, "body-file", "", "File path containing the JSON data to be used as payload")
 
 	fs.Usage = func() {
 		var usageString = `
@@ -104,17 +105,38 @@ func (hc *httpConfig) handleGet() ([]byte, error) {
 }
 
 func (hc *httpConfig) handlePost() ([]byte, error) {
-	if !json.Valid([]byte(hc.body)) {
-		return nil, InvalidJsonBody
-	} else {
-		body := bytes.NewReader([]byte(hc.body))
-		res, err := http.Post(hc.url, "application/json", body)
+	var body io.Reader
+	if len(hc.bodyFilePath) > 0 {
+		path := filepath.Join(hc.bodyFilePath)
+		file, err := os.Open(path)
 		if err != nil {
 			return nil, err
 		}
 
-		defer res.Body.Close()
-		return io.ReadAll(res.Body)
+		j, err := io.ReadAll(file)
+		if err != nil {
+			return j, err
+		}
+
+		if !json.Valid(j) {
+			return nil, InvalidJsonBody
+		}
+
+		body = bytes.NewBuffer(j)
+
+	} else if len(hc.body) > 0 {
+		if !json.Valid([]byte(hc.body)) {
+			return nil, InvalidJsonBody
+		}
+
+		body = bytes.NewReader([]byte(hc.body))
 	}
 
+	res, err := http.Post(hc.url, "application/json", body)
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+	return io.ReadAll(res.Body)
 }
