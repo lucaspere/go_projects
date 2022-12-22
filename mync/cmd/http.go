@@ -27,6 +27,8 @@ type httpConfig struct {
 	headers        map[string]string
 	basicAuth      string
 	report         bool
+	numRequests    int
+	maxIdleConns   int
 }
 
 func HandleHttp(w io.Writer, args []string) error {
@@ -34,6 +36,8 @@ func HandleHttp(w io.Writer, args []string) error {
 	fs := flag.NewFlagSet("http", flag.ContinueOnError)
 
 	fs.SetOutput(w)
+	fs.IntVar(&hc.numRequests, "num-requests", 0, "Number of times to make the same request to a server")
+	fs.IntVar(&hc.maxIdleConns, "max-idle-conns", 0, "The maximum number of idle connections")
 	fs.StringVar(&hc.verb, "verb", "GET", "HTTP method")
 	fs.StringVar(&hc.outputFilePath, "output", "", "File path where save the data's output")
 	fs.StringVar(&hc.body, "body", "", "JSON data to be used as payload")
@@ -134,6 +138,11 @@ func (hc *httpConfig) handleGet() ([]byte, error) {
 		lc.log = l
 
 		client.Transport = &lc
+	} else {
+		t := &http.Transport{
+			MaxIdleConns: hc.maxIdleConns,
+		}
+		client.Transport = t
 	}
 
 	req, err := hc.createHTTPGetRequest()
@@ -141,12 +150,15 @@ func (hc *httpConfig) handleGet() ([]byte, error) {
 		return nil, err
 	}
 
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, err
+	var res *http.Response
+	for i := 0; i <= hc.numRequests; i++ {
+		res, err = client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
 	}
 	defer res.Body.Close()
-
 	return io.ReadAll(res.Body)
 }
 
