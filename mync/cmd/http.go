@@ -26,6 +26,7 @@ type httpConfig struct {
 	disableRed     bool
 	headers        map[string]string
 	basicAuth      string
+	report         bool
 }
 
 func HandleHttp(w io.Writer, args []string) error {
@@ -40,6 +41,7 @@ func HandleHttp(w io.Writer, args []string) error {
 	fs.StringVar(&hc.filePath, "upload", "", "File path of the upload file")
 	fs.StringVar(&hc.basicAuth, "basicauth", "", "Basic authentication for the request")
 	fs.BoolVar(&hc.disableRed, "disable-redirect", false, "If it is for the client not to follow the redirect url")
+	fs.BoolVar(&hc.report, "report", false, "If is to be report request log")
 
 	fd := fs.String("form-data", "", "Form-Data key-value pair")
 	h := fs.String("header", "", "HTTP request header")
@@ -121,12 +123,17 @@ func (hc *httpConfig) validateMethod(w io.Writer) error {
 }
 
 func (hc *httpConfig) handleGet() ([]byte, error) {
-	myTransport := LoggingClient{}
-	l := log.New(os.Stdout, "", log.LstdFlags)
-	myTransport.log = l
+	var lc LoggingClient
 	client := http.Client{
 		CheckRedirect: hc.redirectPolicy,
-		Transport:     &myTransport,
+	}
+
+	if hc.report {
+		lc = LoggingClient{}
+		l := log.New(os.Stdout, "", log.LstdFlags)
+		lc.log = l
+
+		client.Transport = &lc
 	}
 
 	req, err := hc.createHTTPGetRequest()
