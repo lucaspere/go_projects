@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,57 +22,36 @@ type logLine struct {
 }
 type App struct {
 	Address string
+	Logger  *log.Logger
 }
 
-func setupHandlers(sm *http.ServeMux) {
+// func (a App) ServerHTTP(w http.ResponseWriter, r *http.Request) {
+// 	if err := a.h(w, r); err != nil {
+// 		a.Logger.Fatalf("error occurs: %v", err.Error())
+
+// 		fmt.Fprint(w, err.Error())
+// 	}
+// }
+
+func (a *App) setupHandlers(sm *http.ServeMux) {
+
 	sm.HandleFunc("/api", apiHandler)
-	sm.HandleFunc("/healthz", healthCheckHandler)
+	sm.HandleFunc("/healthz", a.healthCheckHandler)
 	sm.HandleFunc("/decode", decodeHandler)
 	sm.HandleFunc("/download", downloadHandler)
 	sm.HandleFunc("/job", longRunningProcessHandler)
 }
 
-func logMiddleware(req *http.Request) *http.Request {
-	l := log.Default()
-	v := req.Context().Value(requestIDKey{})
-
-	if m, ok := v.(requestCtxValue); ok {
-		msg := struct {
-			RequestID string
-			Url       string
-			Method    string
-			BodySize  int64
-			Protocol  string
-		}{
-			m.requestID,
-			req.URL.String(),
-			req.Method,
-			req.ContentLength,
-			req.Proto,
-		}
-		j, err := json.Marshal(&msg)
-		if err != nil {
-			panic(err)
-		}
-
-		l.Printf("%s", j)
-	}
-	return nil
-}
-
 func apiHandler(res http.ResponseWriter, req *http.Request) {
-	requestID := "request-123-abc"
-	r := addRequestID(req, requestID)
-
-	logMiddleware(r)
 	fmt.Fprintln(res, "Hello, world!")
 }
 
-func healthCheckHandler(res http.ResponseWriter, req *http.Request) {
-	requestID := "request-123-abc"
-	r := addRequestID(req, requestID)
-
-	logMiddleware(r)
+func (a *App) healthCheckHandler(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(res, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	a.Logger.Println("Handling healthcheck request")
 	fmt.Fprintf(res, "ok")
 }
 
@@ -167,17 +145,10 @@ func longRunningProcessHandler(res http.ResponseWriter, req *http.Request) {
 	<-done
 }
 
-func addRequestID(r *http.Request, requestID string) *http.Request {
-	rq := r.Context()
-	ctx := context.WithValue(rq, requestIDKey{}, requestCtxValue{requestID})
-
-	return r.WithContext(ctx)
-}
-
 func (app *App) Start() error {
 	sm := http.NewServeMux()
 
-	setupHandlers(sm)
-
-	return http.ListenAndServe(app.Address, sm)
+	app.setupHandlers(sm)
+	m := addRequestID(loggingMiddleware((panicMiddleware(sm))))
+	return http.ListenAndServe(app.Address, m)
 }

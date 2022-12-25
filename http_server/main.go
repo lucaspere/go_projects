@@ -12,7 +12,9 @@ func main() {
 		listenAddr = ":8080"
 	}
 
-	app := server.App{Address: listenAddr}
+	app := server.App{
+		Address: listenAddr,
+		Logger:  log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lshortfile)}
 
 	log.Fatal(app.Start())
 }
