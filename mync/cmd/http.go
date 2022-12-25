@@ -3,13 +3,16 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -20,6 +23,12 @@ type httpConfig struct {
 	body           string
 	filePath       string
 	formData       map[string]string
+	disableRed     bool
+	headers        map[string]string
+	basicAuth      string
+	report         bool
+	numRequests    int
+	maxIdleConns   int
 }
 
 func HandleHttp(w io.Writer, args []string) error {
@@ -27,17 +36,29 @@ func HandleHttp(w io.Writer, args []string) error {
 	fs := flag.NewFlagSet("http", flag.ContinueOnError)
 
 	fs.SetOutput(w)
+	fs.IntVar(&hc.numRequests, "num-requests", 0, "Number of times to make the same request to a server")
+	fs.IntVar(&hc.maxIdleConns, "max-idle-conns", 0, "The maximum number of idle connections")
 	fs.StringVar(&hc.verb, "verb", "GET", "HTTP method")
 	fs.StringVar(&hc.outputFilePath, "output", "", "File path where save the data's output")
 	fs.StringVar(&hc.body, "body", "", "JSON data to be used as payload")
 	fs.StringVar(&hc.filePath, "body-file", "", "File path containing the JSON data to be used as payload")
 	fs.StringVar(&hc.filePath, "upload", "", "File path of the upload file")
-	str := fs.String("form-data", "", "Form-Data key-value pair")
+	fs.StringVar(&hc.basicAuth, "basicauth", "", "Basic authentication for the request")
+	fs.BoolVar(&hc.disableRed, "disable-redirect", false, "If it is for the client not to follow the redirect url")
+	fs.BoolVar(&hc.report, "report", false, "If is to be report request log")
 
-	if len(*str) > 0 {
-		form := strings.Split(*str, "=")
+	fd := fs.String("form-data", "", "Form-Data key-value pair")
+	h := fs.String("header", "", "HTTP request header")
+
+	if len(*fd) > 0 {
+		form := strings.Split(*fd, "=")
 
 		hc.formData[form[0]] = form[1]
+	}
+	if len(*h) > 0 {
+		form := strings.Split(*h, "=")
+
+		hc.headers[form[0]] = form[1]
 	}
 
 	fs.Usage = func() {
@@ -106,18 +127,47 @@ func (hc *httpConfig) validateMethod(w io.Writer) error {
 }
 
 func (hc *httpConfig) handleGet() ([]byte, error) {
-	res, err := http.Get(hc.url)
+	var lc LoggingClient
+	client := http.Client{
+		CheckRedirect: hc.redirectPolicy,
+	}
+
+	if hc.report {
+		lc = LoggingClient{}
+		l := log.New(os.Stdout, "", log.LstdFlags)
+		lc.log = l
+
+		client.Transport = &lc
+	} else {
+		t := &http.Transport{
+			MaxIdleConns: hc.maxIdleConns,
+		}
+		client.Transport = t
+	}
+
+	req, err := hc.createHTTPGetRequest()
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
 
+	var res *http.Response
+	for i := 0; i <= hc.numRequests; i++ {
+		res, err = client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+	defer res.Body.Close()
 	return io.ReadAll(res.Body)
 }
 
 func (hc *httpConfig) handlePost() ([]byte, error) {
 	var body io.Reader
 	var ct = "application/json"
+	client := http.Client{
+		CheckRedirect: hc.redirectPolicy,
+	}
 	if len(hc.filePath) > 0 {
 		hc.filePath = filepath.Join(hc.filePath)
 		file, err := os.Open(hc.filePath)
@@ -150,7 +200,7 @@ func (hc *httpConfig) handlePost() ([]byte, error) {
 		body = bytes.NewReader([]byte(hc.body))
 	}
 
-	res, err := http.Post(hc.url, ct, body)
+	res, err := client.Post(hc.url, ct, body)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +222,7 @@ func (hc *httpConfig) handleMultipart(b []byte) ([]byte, string, error) {
 			return nil, "", err
 		}
 
-		fmt.Fprintf(fw, value)
+		fmt.Fprintln(fw, value)
 	}
 
 	fw, err = mw.CreateFormFile("filedata", hc.filePath)
@@ -188,4 +238,38 @@ func (hc *httpConfig) handleMultipart(b []byte) ([]byte, string, error) {
 
 	contentType := mw.FormDataContentType()
 	return buf.Bytes(), contentType, nil
+}
+
+func (hc *httpConfig) redirectPolicy(req *http.Request, via []*http.Request) error {
+	if hc.disableRed {
+		return errors.New("disabled redirect")
+	}
+	return nil
+}
+
+func (hc *httpConfig) createHTTPGetRequest() (*http.Request, error) {
+	req, err := http.NewRequest("GET", hc.url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range hc.headers {
+		req.Header.Add(k, v)
+	}
+
+	if len(hc.basicAuth) > 0 {
+		err = hc.setAuth(req)
+	}
+
+	return req, err
+}
+
+func (hc *httpConfig) setAuth(req *http.Request) error {
+	if r, e := regexp.Match(`\w+:\w+`, []byte("")); e != nil || !r {
+		return errors.New("invalid basicauth value")
+	}
+	auth := strings.Split(hc.basicAuth, ":")
+	req.SetBasicAuth(auth[0], auth[1])
+
+	return nil
 }
