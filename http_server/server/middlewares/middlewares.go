@@ -10,7 +10,16 @@ import (
 	"time"
 )
 
-func addRequestID(h http.Handler) http.Handler {
+type requestIDKey struct{}
+type requestCtxValue struct {
+	requestID string
+}
+type logLine struct {
+	UserIP string `json:"user_ip"`
+	Event  string `json:"event"`
+}
+
+func AddRequestID(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s := rand.NewSource(time.Now().Unix())
 		rand := rand.New(s)
@@ -22,7 +31,7 @@ func addRequestID(h http.Handler) http.Handler {
 	})
 }
 
-func loggingMiddleware(h http.Handler) http.Handler {
+func LoggingMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			startTime := time.Now()
@@ -54,7 +63,7 @@ func loggingMiddleware(h http.Handler) http.Handler {
 	)
 }
 
-func panicMiddleware(h http.Handler) http.Handler {
+func PanicMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rValue := recover(); rValue != nil {

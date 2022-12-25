@@ -10,12 +10,10 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	md "http_server/server/middlewares"
 )
 
-type requestIDKey struct{}
-type requestCtxValue struct {
-	requestID string
-}
 type logLine struct {
 	UserIP string `json:"user_ip"`
 	Event  string `json:"event"`
@@ -24,14 +22,6 @@ type App struct {
 	Address string
 	Logger  *log.Logger
 }
-
-// func (a App) ServerHTTP(w http.ResponseWriter, r *http.Request) {
-// 	if err := a.h(w, r); err != nil {
-// 		a.Logger.Fatalf("error occurs: %v", err.Error())
-
-// 		fmt.Fprint(w, err.Error())
-// 	}
-// }
 
 func (a *App) setupHandlers(sm *http.ServeMux) {
 
@@ -149,6 +139,6 @@ func (app *App) Start() error {
 	sm := http.NewServeMux()
 
 	app.setupHandlers(sm)
-	m := addRequestID(loggingMiddleware((panicMiddleware(sm))))
+	m := md.AddRequestID(md.LoggingMiddleware(md.PanicMiddleware(sm)))
 	return http.ListenAndServe(app.Address, m)
 }
