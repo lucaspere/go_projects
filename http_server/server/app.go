@@ -22,7 +22,7 @@ type logLine struct {
 	Event  string `json:"event"`
 }
 type App struct {
-	address string
+	Address string
 }
 
 func setupHandlers(sm *http.ServeMux) {
@@ -179,5 +179,5 @@ func (app *App) Start() error {
 
 	setupHandlers(sm)
 
-	return http.ListenAndServe(app.address, sm)
+	return http.ListenAndServe(app.Address, sm)
 }
