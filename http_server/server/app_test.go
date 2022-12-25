@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"io"
@@ -37,12 +37,15 @@ func TestServer(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			res, err := http.Get(ts.URL + tc.path)
-			resBody, err := io.ReadAll(res.Body)
-			res.Body.Close()
-
 			if err != nil {
 				log.Fatal(err)
 			}
+			resBody, err := io.ReadAll(res.Body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer res.Body.Close()
+
 			// Asserts
 			if string(resBody) != tc.expected {
 				t.Errorf(
