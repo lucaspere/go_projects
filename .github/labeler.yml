@@ -1,0 +1,7 @@
+# My Network client application
+mync:
+- mync/*
+
+# A HTTP Server implementation using http go package
+http-server:
+- http-server/*
