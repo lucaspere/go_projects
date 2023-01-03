@@ -13,8 +13,29 @@ type config struct {
 	numTimes int
 }
 
+func (c *config) Run(args []string) error {
+	err := c.parseArgs(args)
+	if err != nil {
+		return err
+	}
+	name, err := getName(os.Stdout, os.Stdin)
+	if err != nil {
+		return err
+	}
+
+	c.GreaterName(name)
+
+	return err
+}
+
+func (c *config) GreaterName(name string) {
+	for i := 0; i < c.numTimes; i++ {
+		fmt.Println("Welcome", name)
+	}
+}
+
 func validateNumberArgs(args []string) error {
-	if len(args) != 1 {
+	if len(args) <= 1 {
 		return errors.New("must specify a number greater than 0")
 	}
 
@@ -29,29 +50,21 @@ func validateArgs(args []string) error {
 	return nil
 }
 
-func parseArgs(args []string) (config, error) {
-	var c config
+func (c *config) parseArgs(args []string) error {
 	if err := validateNumberArgs(args); err != nil {
-		return c, err
+		return err
 	}
 	if err := validateArgs(args); err != nil {
-		return c, err
+		return err
 	}
 
 	numTimes, err := strconv.Atoi(args[1])
 	if err != nil {
-		return c, fmt.Errorf("%s is not a int type", args[1])
+		return fmt.Errorf("%s is not a int type", args[1])
 	}
 
 	c.numTimes = numTimes
-	return c, nil
-}
-func main() {
-	args := os.Args[1:]
-	_, err := parseArgs(args)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
+	return nil
 }
 
 func getName(w io.Writer, r io.Reader) (string, error) {
@@ -70,4 +83,14 @@ func getName(w io.Writer, r io.Reader) (string, error) {
 	}
 
 	return name, nil
+}
+
+func main() {
+	var c config
+	args := os.Args[1:]
+	if err := c.Run(args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 }
