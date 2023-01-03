@@ -6,23 +6,52 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 )
 
 type config struct {
 	numTimes int
 }
 
-func validateArgs(args []string) error {
+func validateNumberArgs(args []string) error {
 	if len(args) != 1 {
-		return errors.New("Must specify a number greater than 0")
+		return errors.New("must specify a number greater than 0")
 	}
 
 	return nil
 }
 
+func validateArgs(args []string) error {
+	if args[0] != "-n" {
+		return fmt.Errorf("invalid %s argument. Must specify a valid argument %s", args[0], "-n")
+	}
+
+	return nil
+}
+
+func parseArgs(args []string) (config, error) {
+	var c config
+	if err := validateNumberArgs(args); err != nil {
+		return c, err
+	}
+	if err := validateArgs(args); err != nil {
+		return c, err
+	}
+
+	numTimes, err := strconv.Atoi(args[1])
+	if err != nil {
+		return c, fmt.Errorf("%s is not a int type", args[1])
+	}
+
+	c.numTimes = numTimes
+	return c, nil
+}
 func main() {
-	commands := os.Args[1:]
-	fmt.Println(commands)
+	args := os.Args[1:]
+	_, err := parseArgs(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 }
 
 func getName(w io.Writer, r io.Reader) (string, error) {
