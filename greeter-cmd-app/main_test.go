@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -110,5 +112,49 @@ func TestValidateArgs(t *testing.T) {
 		if tc.expected == nil && err != nil {
 			t.Errorf("Expected nil error, got: %v\n", err)
 		}
+	}
+}
+
+func TestGetName(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		input  string
+		err    error
+	}{
+		{
+			output: strings.Repeat("Your name please? Press the Enter key when done. \n", 1),
+			input:  "",
+			err:    errors.New("you didn't enter your name"),
+		},
+		{
+			output: strings.Repeat("Your name please? Press the Enter key when done. \n", 1),
+			input:  "teste",
+			err:    nil,
+		},
+	}
+
+	var byteBuf bytes.Buffer
+	for _, tc := range tests {
+		rd := strings.NewReader(tc.input)
+		name, err := getName(&byteBuf, rd)
+
+		if err != nil && tc.err == nil {
+			t.Fatalf("Expected nil error, got: %v\n", err)
+		}
+
+		if err != nil && err.Error() != tc.err.Error() {
+			t.Errorf("expected error to be: %v, got: %v\n", tc.err, err)
+		}
+
+		if name != tc.input {
+			t.Errorf("expected name to be: %v, got: %v\n", tc.input, name)
+		}
+
+		gotMsg := byteBuf.String()
+		if gotMsg != tc.output {
+			t.Errorf("expected error to be: %v, got: %v\n", tc.output, gotMsg)
+		}
+		byteBuf.Reset()
 	}
 }
