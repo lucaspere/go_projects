@@ -28,28 +28,6 @@ func (c *config) Run(args []string) error {
 	return err
 }
 
-func (c *config) GreaterName(name string) {
-	for i := 0; i < c.numTimes; i++ {
-		fmt.Println("Welcome", name)
-	}
-}
-
-func validateNumberArgs(args []string) error {
-	if len(args) <= 1 {
-		return errors.New("must specify a number greater than 0")
-	}
-
-	return nil
-}
-
-func validateArgs(args []string) error {
-	if args[0] != "-n" {
-		return fmt.Errorf("invalid %s argument. Must specify a valid argument %s", args[0], "-n")
-	}
-
-	return nil
-}
-
 func (c *config) parseArgs(args []string) error {
 	if err := validateNumberArgs(args); err != nil {
 		return err
@@ -60,10 +38,36 @@ func (c *config) parseArgs(args []string) error {
 
 	numTimes, err := strconv.Atoi(args[1])
 	if err != nil {
+		println("entrou")
 		return fmt.Errorf("%s is not a int type", args[1])
 	}
 
 	c.numTimes = numTimes
+	return nil
+}
+
+func (c *config) GreaterName(name string) {
+	for i := 0; i < c.numTimes; i++ {
+		fmt.Println("Welcome", name)
+	}
+}
+
+func validateNumberArgs(args []string) error {
+	if len(args) < 1 {
+		return errors.New("must specify one argument")
+	}
+
+	return nil
+}
+
+func validateArgs(args []string) error {
+	if args[0] != "-n" {
+		return fmt.Errorf("invalid %s argument. Must specify a valid argument %s", args[0], "-n")
+	}
+	if len(args) == 1 {
+		return fmt.Errorf("must insert some int value to -n argument")
+	}
+
 	return nil
 }
 
