@@ -6,7 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 )
 
 func startTestPackageServer() *httptest.Server {
@@ -22,23 +24,21 @@ func startTestPackageServer() *httptest.Server {
 					fmt.Fprint(w, pkgData)
 				}
 				if r.Method == "POST" {
-					// Incoming package data
-					p := pkgData{}
-
-					// Package registration response
 					d := pkgRegisterResult{}
-					defer r.Body.Close()
-					data, err := io.ReadAll(r.Body)
+					err := r.ParseMultipartForm(5000)
 					if err != nil {
-						http.Error(w, err.Error(), http.StatusInternalServerError)
+						http.Error(
+							w, err.Error(), http.StatusBadRequest,
+						)
 						return
 					}
-					err = json.Unmarshal(data, &p)
-					if err != nil || len(p.Name) == 0 || len(p.Version) == 0 {
-						http.Error(w, "Bad Request", http.StatusBadRequest)
-						return
-					}
-					d.Id = p.Name + "-" + p.Version
+					mForm := r.MultipartForm
+					f := mForm.File["filedata"][0]
+					d.Id = fmt.Sprintf(
+						"%s-%s", mForm.Value["name"][0], mForm.Value["version"][0],
+					)
+					d.Filename = f.Filename
+					d.Size = f.Size
 					jsonData, err := json.Marshal(d)
 					if err != nil {
 						http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -101,14 +101,28 @@ func TestRegisterPackageData(t *testing.T) {
 	ts := startTestPackageServer()
 	defer ts.Close()
 	p := pkgData{
-		Name:    "mypackage",
-		Version: "0.1",
+		Name:     "mypackage",
+		Version:  "0.1",
+		Filename: "mypackage-0.1.tar.gz",
+		Bytes:    strings.NewReader("data"),
 	}
-	resp, err := registerPackageData(ts.URL, p)
+	client := createHTTPClientWithTimeout(time.Second * 5)
+	pResult, err := registerPackageData(client, ts.URL, p)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.Id != "mypackage-0.1" {
-		t.Errorf("Expected package id to be mypackage-0.1, Got: %s", resp.Id)
+
+	if pResult.Id != fmt.Sprintf("%s-%s", p.Name, p.Version) {
+		t.Errorf(
+			"Expected package ID to be %s-%s, Got: %s", p.Name, p.Version, pResult.Id,
+		)
+	}
+	if pResult.Filename != p.Filename {
+		t.Errorf(
+			"Expected package filename to be %s, Got: %s", p.Filename, pResult.Filename,
+		)
+		if pResult.Size != 4 {
+			t.Errorf("Expected package size to be 4, Got: %d", pResult.Size)
+		}
 	}
 }
