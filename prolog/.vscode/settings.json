@@ -1,0 +1,9 @@
+{
+  "grammarly.selectors": [
+    {
+      "language": "go",
+      "scheme": "file",
+      "pattern": "internal/log/store.go"
+    }
+  ]
+}
