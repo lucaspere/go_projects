@@ -71,7 +71,7 @@ func (s *store) Append(p []byte) (n uint64, pos uint64, err error) {
 }
 
 // Read method reads data from the store at the specified position (`pos`).
-// It returns the buffer that hold the data. If there is an error reading the data, the method returns it.
+// It returns the buffer that holds the data. If there is an error reading the data, the method returns it.
 func (s *store) Read(pos uint64) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -104,8 +104,8 @@ func (s *store) ReadAt(p []byte, off int64) (int, error) {
 }
 
 // The Close method closes the file that is represented by the store.
-// Before closed it, the method flushes the buffer to ensure that any data in the buffer is written to the fie.
-// It returns a error if occurs during the closed.
+// Before closing it, the method flushes the buffer to ensure that any data in the buffer is written to the fie.
+// It returns an error if occurs during the closed.
 func (s *store) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
