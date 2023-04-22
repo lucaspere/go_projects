@@ -37,7 +37,7 @@ func TestStoreAppendRead(t *testing.T) {
 				t.Fatal(err)
 			}
 			if pos+n != width*i {
-				t.Errorf("Expect %d to be equal %d", pos+n, width*i)
+				t.Errorf("Expect to be equal %d, %d", pos+n, width*i)
 			}
 		}
 	})
