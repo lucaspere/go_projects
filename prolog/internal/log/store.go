@@ -15,7 +15,7 @@ const (
 	lenWidth = 8
 )
 
-// Store represents a log file that can be appended to and read from.
+// Store represents a log file that can be appended record to and read record from.
 //
 // Embedding the `*os.File` pointer in the struct allows the `store` struct to access all the fields and methods of the `os.File` type, effectively inheriting its functionaly.
 // This makes it easy to use function from the `os` package to interact with the file, while also adding additional functionality for appending and reading data.
