@@ -1,9 +1,9 @@
-## What this PR does?
+## What does this PR do?
 <!-- 
- Describes what this projects does
+ Describes what this projects does.
 -->
 
-## What you learned doing this PR?
+## What did you learn by doing this PR?
 <!--
-  Tell what you learned coding this project
+  Tell me what you learned.
 -->
