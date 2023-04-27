@@ -1,6 +1,6 @@
 ## What does this PR do?
 <!-- 
- Describes what this projects does.
+ Describes what this project does.
 -->
 
 ## What did you learn by doing this PR?
