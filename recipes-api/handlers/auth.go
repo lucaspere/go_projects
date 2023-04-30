@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/lucaspere/go_projects/recipes-api/models"
 )
 
@@ -32,7 +32,6 @@ func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 		})
 		return
 	}
-
 	et := time.Now().Add(10 * time.Minute)
 	claims := &Claims{
 		Username: user.Username,
@@ -40,7 +39,7 @@ func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 			ExpiresAt: et.Unix(),
 		},
 	}
-	t := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	ts, err := t.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError,
@@ -54,4 +53,23 @@ func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, jwtOutput)
+}
+
+func (handler *AuthHandler) AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenValue := c.GetHeader("Authorization")
+		claims := &Claims{}
+		tkn, err := jwt.ParseWithClaims(tokenValue, claims,
+			func(token *jwt.Token) (interface{}, error) {
+				return []byte(os.Getenv("JWT_SECRET")), nil
+			})
+		if err != nil {
+			c.AbortWithStatus(http.StatusUnauthorized)
+		}
+		if tkn == nil || !tkn.Valid {
+			c.AbortWithStatus(http.StatusUnauthorized)
+		}
+		c.Next()
+	}
+
 }
