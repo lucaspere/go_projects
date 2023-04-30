@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+	"crypto/sha256"
 	"net/http"
 	"os"
 	"time"
@@ -8,9 +10,22 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/lucaspere/go_projects/recipes-api/models"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type AuthHandler struct{}
+type AuthHandler struct {
+	collection *mongo.Collection
+	ctx        context.Context
+}
+
+func NewAuthHandler(ctx context.Context, collection *mongo.Collection) *AuthHandler {
+	return &AuthHandler{
+		collection: collection,
+		ctx:        ctx,
+	}
+}
+
 type Claims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
@@ -26,12 +41,18 @@ func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if user.Username != "admin" || user.Password != "password" {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Invalid username or password",
-		})
+
+	h := sha256.New()
+	cur := handler.collection.FindOne(handler.ctx, bson.M{
+		"username": user.Username,
+		"password": string(h.Sum([]byte(user.Password))),
+	})
+	if cur.Err() != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
+
 	}
+
 	et := time.Now().Add(10 * time.Minute)
 	claims := &Claims{
 		Username: user.Username,
@@ -53,6 +74,32 @@ func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, jwtOutput)
+}
+
+func (handler *AuthHandler) SignUpHanlder(c *gin.Context) {
+	var user models.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if cur := handler.collection.FindOne(handler.ctx, bson.M{
+		"username": user.Username,
+	}); cur.Err() == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user already created"})
+		return
+	}
+
+	h := sha256.New()
+	if _, err := handler.collection.InsertOne(handler.ctx, bson.M{
+		"username": user.Username,
+		"password": string(h.Sum([]byte(user.Password))),
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+
+	c.Status(http.StatusCreated)
 }
 
 func (handler *AuthHandler) AuthMiddleware() gin.HandlerFunc {

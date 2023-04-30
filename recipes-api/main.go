@@ -17,6 +17,7 @@ import (
 var ctx context.Context
 var err error
 var client *mongo.Client
+var collectionUsers *mongo.Collection
 var collection *mongo.Collection
 var redisClient *redis.Client
 
@@ -37,21 +38,23 @@ func init() {
 	fmt.Println(status)
 	log.Println("Connected to MongoDB")
 
+	collectionUsers = client.Database(os.Getenv("MONGO_DATABASE")).Collection("users")
 	collection = client.Database(os.Getenv("MONGO_DATABASE")).Collection("recipes")
 }
 
 func main() {
 	router := gin.Default()
 	recipientHandlers := handlers.NewRecipesHandler(ctx, collection, redisClient)
-	authHandler := &handlers.AuthHandler{}
+	usersHandlers := handlers.NewAuthHandler(ctx, collectionUsers)
 
-	router.POST("/recipes", authHandler.AuthMiddleware(), recipientHandlers.NewRecipeHandler)
+	router.POST("/recipes", usersHandlers.AuthMiddleware(), recipientHandlers.NewRecipeHandler)
 	router.GET("/recipes", recipientHandlers.ListRecipesHandler)
-	router.PUT("/recipes/:id", authHandler.AuthMiddleware(), recipientHandlers.UpdateRecipeHandler)
-	router.DELETE("/recipes/:id", authHandler.AuthMiddleware(), recipientHandlers.DeleteRecipeHandler)
+	router.PUT("/recipes/:id", usersHandlers.AuthMiddleware(), recipientHandlers.UpdateRecipeHandler)
+	router.DELETE("/recipes/:id", usersHandlers.AuthMiddleware(), recipientHandlers.DeleteRecipeHandler)
 	router.GET("/recipes/:id", recipientHandlers.GetOneRecipeHandler)
 
-	router.POST("/signin", authHandler.SignInHandler)
-	router.POST("/refresh", authHandler.RefreshHandler)
+	router.POST("/signin", usersHandlers.SignInHandler)
+	router.POST("/signup", usersHandlers.SignUpHanlder)
+	router.POST("/refresh", usersHandlers.RefreshHandler)
 	router.Run()
 }
