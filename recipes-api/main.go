@@ -52,6 +52,6 @@ func main() {
 	router.GET("/recipes/:id", recipientHandlers.GetOneRecipeHandler)
 
 	router.POST("/signin", authHandler.SignInHandler)
-
+	router.POST("/refresh", authHandler.RefreshHandler)
 	router.Run()
 }
