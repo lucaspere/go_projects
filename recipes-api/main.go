@@ -56,5 +56,10 @@ func main() {
 	router.POST("/signin", usersHandlers.SignInHandler)
 	router.POST("/signup", usersHandlers.SignUpHanlder)
 	router.POST("/refresh", usersHandlers.RefreshHandler)
-	router.Run()
+
+	if enviroment := os.Getenv("GIN_ENV"); enviroment == "production" {
+		router.RunTLS(":8080", "./certs/localhost.crt", "./certs/localhost.key")
+	} else {
+		router.Run()
+	}
 }
