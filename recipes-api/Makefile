@@ -9,7 +9,7 @@ serve_dev:
 new_recipe:
 	curl -X POST \
 	-H "Content-Type: application/json" \
-	-H "Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwiZXhwIjoxNjgyODY1NzMyfQ.UzFob7XlnXqYGiE7wENxOJwbTlrdkHpN59c20u8WAws" \
+	-H "Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwiZXhwIjoxNjgyODY4NzQ2fQ.-cyvvlP59yL5MkxiHfmtbXRtVFAPixe5wTTQMR-Dcj0" \
 	-d @./mocks/newRecipe.json \
 	http://localhost:8080/recipes \
 	| jq -r
@@ -24,6 +24,13 @@ signin:
 	-H "Content-Type: application/json" \
 	-d @./mocks/signIn.json \
 	http://localhost:8080/signin \
+	| jq -r
+
+signup:
+	curl -X POST \
+	-H "Content-Type: application/json" \
+	-d @./mocks/signup.json \
+	http://localhost:8080/signup \
 	| jq -r
 
 commit_feature:
