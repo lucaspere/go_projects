@@ -32,12 +32,15 @@ func init() {
 		log.Fatal(err)
 	}
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     os.Getenv("REDIS_URI"),
 		Password: "",
 		DB:       0,
 	})
-	status := redisClient.Ping()
-	fmt.Println(status)
+	status, err := redisClient.Ping().Result()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Connected to Redis, status ", status)
 	log.Println("Connected to MongoDB")
 
 	collectionUsers = client.Database(os.Getenv("MONGO_DATABASE")).Collection("users")

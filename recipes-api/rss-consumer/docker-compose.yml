@@ -8,6 +8,7 @@ services:
       - MONGO_DATABASE=demo2
       - RABBITMQ_URI=amqp://user:password@rabbitmq:5672
       - RABBITMQ_QUEUE=rss_urls
+    scale: 5
     networks:
       - app_network
     external_links:

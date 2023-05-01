@@ -23,13 +23,13 @@ signin:
 	curl -X POST \
 	-H "Content-Type: application/json" \
 	-d @./mocks/signIn.json \
-	http://localhost:8080/signin \
+	http://localhost/api/signin \
 	| jq -r
 
 signup:
 	curl -X POST \
 	-H "Content-Type: application/json" \
 	-d @./mocks/signup.json \
-	http://localhost:8080/signup \
+	http://localhost/api/signup \
 	| jq -r
 
