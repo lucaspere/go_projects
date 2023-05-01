@@ -1,8 +1,8 @@
 get_repo_name: printf '%s\n' "${PWD##*/}"
 
-serve_dev:
-	MONGO_URI="mongodb://admin:password@localhost:27017/test?authSource=admin" \
-	MONGO_DATABASE=demo \
+serve:
+	MONGO_URI="mongodb://admin:password@localhost:27017/test?authSource=admin'" \
+	MONGO_DATABASE="demo" \
 	JWT_SECRET=secret \
 	go run .
 
@@ -33,5 +33,3 @@ signup:
 	http://localhost:8080/signup \
 	| jq -r
 
-commit_feature:
-	echo "feat($(call list_recipe))"
