@@ -29,7 +29,6 @@ type Entry struct {
 	Title string `xml:"title"`
 }
 
-var channelAmqp *amqp.Channel
 var client *mongo.Client
 var ctx context.Context
 
@@ -38,14 +37,7 @@ func init() {
 	client, _ = mongo.Connect(ctx,
 		options.Client().ApplyURI(os.Getenv("MONGO_URI")),
 	)
-	amqpConnection, err := amqp.Dial(os.Getenv("RABBITMQ_URI"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	channelAmqp, _ = amqpConnection.Channel()
 }
-
 func GetFeedEntries(url string) ([]Entry, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
