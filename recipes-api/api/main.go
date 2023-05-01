@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
-	"github.com/lucaspere/go_projects/recipes-api/handlers"
+	"github.com/lucaspere/go_projects/recipes-api/api/handlers"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -52,6 +54,7 @@ func main() {
 	router.PUT("/recipes/:id", usersHandlers.AuthMiddleware(), recipientHandlers.UpdateRecipeHandler)
 	router.DELETE("/recipes/:id", usersHandlers.AuthMiddleware(), recipientHandlers.DeleteRecipeHandler)
 	router.GET("/recipes/:id", recipientHandlers.GetOneRecipeHandler)
+	router.GET("/dashboard", DashboardHandler)
 
 	router.POST("/signin", usersHandlers.SignInHandler)
 	router.POST("/signup", usersHandlers.SignUpHanlder)
@@ -60,6 +63,32 @@ func main() {
 	if enviroment := os.Getenv("GIN_ENV"); enviroment == "production" {
 		router.RunTLS(":8080", "./certs/localhost.crt", "./certs/localhost.key")
 	} else {
-		router.Run()
+		router.Run(":8000")
 	}
+}
+
+type Recipe struct {
+	Title     string `json:"title" bson:"title"`
+	Thumbnail string `json:"thumbnail" bson:"thumbnail"`
+	URL       string `json:"url" bson:"url"`
+}
+
+func DashboardHandler(c *gin.Context) {
+	cur, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError,
+			gin.H{"error": err.Error()})
+		return
+	}
+	defer cur.Close(ctx)
+	recipes := make([]Recipe, 0)
+	for cur.Next(ctx) {
+		var recipe Recipe
+		cur.Decode(&recipe)
+		recipes = append(recipes, recipe)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"recipes": recipes,
+	})
 }
