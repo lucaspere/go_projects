@@ -16,7 +16,7 @@ new_recipe:
 
 list_recipe:
 	curl -sL \
-	http://localhost:8080/recipes \
+	http://localhost/api/recipes \
 	| jq -r
 
 signin:
