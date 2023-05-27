@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestConversion(t *testing.T) {
+func TestConvertCtoF(t *testing.T) {
 	tests := []struct {
 		input  float64
 		expect float64
